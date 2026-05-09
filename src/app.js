@@ -1,0 +1,46 @@
+require('dotenv').config();
+const TelegramBot = require('node-telegram-bot-api');
+const express = require('express');
+const { initDatabase } = require('./models');
+const { registerHandlers } = require('./handlers');
+
+const app = express();
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+
+// Initialize database
+initDatabase().then(() => {
+  console.log('✅ Database initialized');
+}).catch(err => {
+  console.error('❌ Database initialization failed:', err);
+  process.exit(1);
+});
+
+// Register bot command handlers
+registerHandlers(bot);
+
+// Express webhook endpoint (optional, for production)
+app.use(express.json());
+app.post('/webhook/bakong', async (req, res) => {
+  // Handle Bakong webhook notifications
+  const { handleBakongWebhook } = require('./services/bakongService');
+  await handleBakongWebhook(req.body, bot);
+  res.sendStatus(200);
+});
+
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: new Date().toISOString() });
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`🚀 Server running on port ${PORT}`);
+  console.log('🤖 Telegram bot is active');
+});
+
+// Graceful shutdown
+process.on('SIGINT', () => {
+  console.log('\n👋 Shutting down gracefully...');
+  bot.stopPolling();
+  process.exit(0);
+});
