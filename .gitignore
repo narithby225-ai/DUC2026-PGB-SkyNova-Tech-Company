@@ -18,11 +18,20 @@ env/
 # Logs
 logs/
 *.log
+pm2-*.log
 
 # Database
 *.db
 *.sqlite
+data/*.json
+
+# Docker
+.dockerignore
 
 # OS
 .DS_Store
 Thumbs.db
+
+# PM2
+.pm2/
+

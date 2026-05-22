@@ -1,44 +1,29 @@
-const { Sequelize } = require('sequelize');
-const path = require('path');
+/**
+ * Database Factory
+ * Supports both MongoDB (for production/multi-device) and JSON (for development)
+ */
 
-// Initialize Sequelize
-const sequelize = new Sequelize({
-  dialect: 'sqlite',
-  storage: path.join(__dirname, '../../sales.db'),
-  logging: false
-});
+const dbType = process.env.DATABASE_TYPE || 'json';
 
-// Import models
-const Branch = require('./Branch')(sequelize);
-const User = require('./User')(sequelize);
-const Transaction = require('./Transaction')(sequelize);
+let Branch, User, Transaction, initDatabase;
 
-// Define relationships
-Branch.hasMany(Transaction, { foreignKey: 'branchId' });
-Transaction.belongsTo(Branch, { foreignKey: 'branchId' });
-
-User.hasMany(Transaction, { foreignKey: 'userId' });
-Transaction.belongsTo(User, { foreignKey: 'userId' });
-
-User.belongsTo(Branch, { as: 'CurrentBranch', foreignKey: 'currentBranchId' });
-
-// Initialize database
-async function initDatabase() {
-  await sequelize.sync();
-  
-  // Seed default branches if none exist
-  const branchCount = await Branch.count();
-  if (branchCount === 0) {
-    const branches = process.env.BRANCHES?.split(',') || ['Branch1', 'Branch2', 'Branch3'];
-    await Branch.bulkCreate(
-      branches.map(name => ({ name: name.trim() }))
-    );
-    console.log('✅ Default branches created');
-  }
+if (dbType === 'mongodb') {
+  console.log('🔌 Using MongoDB database');
+  const mongodb = require('./mongodb');
+  Branch = mongodb.Branch;
+  User = mongodb.User;
+  Transaction = mongodb.Transaction;
+  initDatabase = mongodb.initDatabase;
+} else {
+  console.log('📁 Using JSON file database');
+  const simpleDB = require('./simpleDB');
+  Branch = simpleDB.Branch;
+  User = simpleDB.User;
+  Transaction = simpleDB.Transaction;
+  initDatabase = simpleDB.initDatabase;
 }
 
 module.exports = {
-  sequelize,
   Branch,
   User,
   Transaction,
