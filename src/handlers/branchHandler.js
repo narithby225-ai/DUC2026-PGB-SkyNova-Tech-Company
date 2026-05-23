@@ -1,7 +1,22 @@
 const { Branch, User } = require('../models/simpleDB');
 
+// Track recent branch selections to prevent duplicates
+const recentSelections = new Map();
+
 async function selectBranch(bot, msg) {
   const chatId = msg.chat.id;
+  const msgKey = `${chatId}_${msg.message_id}`;
+  
+  // Check if this exact message was already processed
+  if (recentSelections.has(msgKey)) {
+    return;
+  }
+  
+  // Mark as processed
+  recentSelections.set(msgKey, Date.now());
+  
+  // Clean up old entries after 10 seconds
+  setTimeout(() => recentSelections.delete(msgKey), 10000);
   
   try {
     const branches = await Branch.findAll();

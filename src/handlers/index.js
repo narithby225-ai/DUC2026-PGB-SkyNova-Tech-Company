@@ -6,23 +6,77 @@ const adminHandler = require('./adminHandler');
 const analyticsHandler = require('./analyticsHandler');
 
 function registerHandlers(bot) {
+  // Track processed messages to prevent duplicates
+  const processedMessages = new Set();
+  
+  // Helper function to check if message was already processed
+  const isProcessed = (msgId) => {
+    if (processedMessages.has(msgId)) {
+      return true;
+    }
+    processedMessages.add(msgId);
+    // Clean up old message IDs after 5 seconds
+    setTimeout(() => processedMessages.delete(msgId), 5000);
+    return false;
+  };
+  
   // Command handlers
-  bot.onText(/\/start/, (msg) => startHandler(bot, msg));
-  bot.onText(/\/help/, (msg) => startHandler(bot, msg));
-  bot.onText(/\/record/, (msg) => paymentHandler.recordPayment(bot, msg));
-  bot.onText(/\/report/, (msg) => reportHandler.generateReport(bot, msg));
-  bot.onText(/\/daily/, (msg) => reportHandler.dailyReport(bot, msg));
-  bot.onText(/\/weekly/, (msg) => analyticsHandler.weeklyAnalytics(bot, msg));
-  bot.onText(/\/monthly/, (msg) => analyticsHandler.monthlyAnalytics(bot, msg));
-  bot.onText(/\/branch/, (msg) => branchHandler.selectBranch(bot, msg));
-  bot.onText(/\/admin/, (msg) => adminHandler.adminPanel(bot, msg));
+  bot.onText(/\/start/, (msg) => {
+    if (!isProcessed(msg.message_id)) startHandler(bot, msg);
+  });
+  
+  bot.onText(/\/help/, (msg) => {
+    if (!isProcessed(msg.message_id)) startHandler(bot, msg);
+  });
+  
+  bot.onText(/\/record/, (msg) => {
+    if (!isProcessed(msg.message_id)) paymentHandler.recordPayment(bot, msg);
+  });
+  
+  bot.onText(/\/report/, (msg) => {
+    if (!isProcessed(msg.message_id)) reportHandler.generateReport(bot, msg);
+  });
+  
+  bot.onText(/\/daily/, (msg) => {
+    if (!isProcessed(msg.message_id)) reportHandler.dailyReport(bot, msg);
+  });
+  
+  bot.onText(/\/weekly/, (msg) => {
+    if (!isProcessed(msg.message_id)) analyticsHandler.weeklyAnalytics(bot, msg);
+  });
+  
+  bot.onText(/\/monthly/, (msg) => {
+    if (!isProcessed(msg.message_id)) analyticsHandler.monthlyAnalytics(bot, msg);
+  });
+  
+  bot.onText(/\/branch/, (msg) => {
+    if (!isProcessed(msg.message_id)) branchHandler.selectBranch(bot, msg);
+  });
+  
+  bot.onText(/\/admin/, (msg) => {
+    if (!isProcessed(msg.message_id)) adminHandler.adminPanel(bot, msg);
+  });
   
   // Text button handlers
-  bot.onText(/📸 Record Payment/, (msg) => paymentHandler.recordPayment(bot, msg));
-  bot.onText(/📊 View Reports/, (msg) => reportHandler.generateReport(bot, msg));
-  bot.onText(/🏪 Select Branch/, (msg) => branchHandler.selectBranch(bot, msg));
-  bot.onText(/📅 Daily Summary/, (msg) => reportHandler.dailyReport(bot, msg));
-  bot.onText(/❓ Help/, (msg) => startHandler(bot, msg));
+  bot.onText(/📸 Record Payment/, (msg) => {
+    if (!isProcessed(msg.message_id)) paymentHandler.recordPayment(bot, msg);
+  });
+  
+  bot.onText(/📊 View Reports/, (msg) => {
+    if (!isProcessed(msg.message_id)) reportHandler.generateReport(bot, msg);
+  });
+  
+  bot.onText(/🏪 Select Branch/, (msg) => {
+    if (!isProcessed(msg.message_id)) branchHandler.selectBranch(bot, msg);
+  });
+  
+  bot.onText(/📅 Daily Summary/, (msg) => {
+    if (!isProcessed(msg.message_id)) reportHandler.dailyReport(bot, msg);
+  });
+  
+  bot.onText(/❓ Help/, (msg) => {
+    if (!isProcessed(msg.message_id)) startHandler(bot, msg);
+  });
   
   // Callback query handler for inline buttons
   bot.on('callback_query', async (query) => {
