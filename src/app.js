@@ -37,7 +37,21 @@ if (!process.env.TELEGRAM_BOT_TOKEN || process.env.TELEGRAM_BOT_TOKEN === 'your_
   process.exit(1);
 }
 
-const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.TELEGRAM_BOT_TOKEN, { 
+  polling: {
+    interval: 300,
+    autoStart: true,
+    params: {
+      timeout: 10
+    }
+  }
+});
+
+// Handle polling errors
+bot.on('polling_error', (error) => {
+  logger.error('Polling error:', { error: error.message });
+  console.error('⚠️ Polling error:', error.message);
+});
 
 // Initialize database
 initDatabase().then(() => {
