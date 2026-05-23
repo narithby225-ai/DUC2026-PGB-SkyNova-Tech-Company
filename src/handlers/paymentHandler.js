@@ -21,8 +21,11 @@ async function recordPayment(bot, msg) {
     '`AMOUNT DESCRIPTION`\n\n' +
     '**Examples:**\n' +
     '• `25000 2x Fried Rice, 1x Coke`\n' +
-    '• `15000 Noodle Soup`\n' +
-    '• `50000 Mixed order`\n\n' +
+    '• `25000៛ Noodle Soup` (Riel)\n' +
+    '• `10$ Mixed order` (Dollar)\n' +
+    '• `$5 Coffee` (Dollar)\n' +
+    '• `15000 Payment` (Default: Riel)\n\n' +
+    '💡 **Tip:** You can use ៛ or $ symbols!\n\n' +
     'Or send a screenshot of KHQR payment.',
     { parse_mode: 'Markdown' }
   );
@@ -85,25 +88,64 @@ async function handlePaymentText(bot, msg) {
       return; // Not a payment entry
     }
     
-    // Parse payment: "AMOUNT DESCRIPTION"
-    const parts = text.trim().split(/\s+/);
-    const amount = parseFloat(parts[0]);
+    // Parse payment with currency symbol support
+    // Supports: "25000 description", "25000៛ description", "25$ description", "$25 description"
+    let amount = 0;
+    let currency = 'KHR'; // Default currency
+    let description = '';
+    
+    // Remove extra spaces and trim
+    const cleanText = text.trim();
+    
+    // Check for currency symbols
+    if (cleanText.includes('$')) {
+      // Dollar format: "25$" or "$25" or "25 $"
+      const dollarMatch = cleanText.match(/\$?\s*(\d+(?:\.\d+)?)\s*\$?/);
+      if (dollarMatch) {
+        amount = parseFloat(dollarMatch[1]);
+        currency = 'USD';
+        // Get description (everything after the amount and symbol)
+        description = cleanText.replace(/\$?\s*\d+(?:\.\d+)?\s*\$?/, '').trim() || 'Payment';
+      }
+    } else if (cleanText.includes('៛')) {
+      // Riel format: "25000៛" or "៛25000"
+      const rielMatch = cleanText.match(/៛?\s*(\d+(?:\.\d+)?)\s*៛?/);
+      if (rielMatch) {
+        amount = parseFloat(rielMatch[1]);
+        currency = 'KHR';
+        // Get description (everything after the amount and symbol)
+        description = cleanText.replace(/៛?\s*\d+(?:\.\d+)?\s*៛?/, '').trim() || 'Payment';
+      }
+    } else {
+      // No symbol - parse as before: "AMOUNT DESCRIPTION"
+      const parts = cleanText.split(/\s+/);
+      amount = parseFloat(parts[0]);
+      currency = 'KHR'; // Default to KHR if no symbol
+      description = parts.slice(1).join(' ') || 'Payment';
+    }
     
     if (isNaN(amount) || amount <= 0) {
       return; // Not a valid payment format
     }
     
-    const description = parts.slice(1).join(' ') || 'Payment';
     const branch = await Branch.findById(user.currentBranchId);
     const timestamp = moment().tz('Asia/Phnom_Penh');
+    
+    // Convert amount to KHR for storage (if USD, convert)
+    let amountInKHR = amount;
+    if (currency === 'USD') {
+      // Convert USD to KHR (using exchange rate from currencyUtils)
+      const { convertUSDtoKHR } = require('../utils/currencyUtils');
+      amountInKHR = convertUSDtoKHR(amount);
+    }
     
     // Ask for payment method
     const keyboard = {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: '📱 QR Payment', callback_data: `method_${amount}_${user.currentBranchId}_${encodeURIComponent(description)}_QR` },
-            { text: '💵 Cash Payment', callback_data: `method_${amount}_${user.currentBranchId}_${encodeURIComponent(description)}_CASH` }
+            { text: '📱 QR Payment', callback_data: `method_${amountInKHR}_${user.currentBranchId}_${encodeURIComponent(description)}_QR_${currency}` },
+            { text: '💵 Cash Payment', callback_data: `method_${amountInKHR}_${user.currentBranchId}_${encodeURIComponent(description)}_CASH_${currency}` }
           ],
           [
             { text: '❌ Cancel', callback_data: 'confirm_cancel' }
@@ -113,7 +155,10 @@ async function handlePaymentText(bot, msg) {
     };
     
     const { formatBothCurrencies } = require('../utils/currencyUtils');
-    const amounts = formatBothCurrencies(amount);
+    const amounts = formatBothCurrencies(amountInKHR);
+    
+    // Show which currency was detected
+    const currencyDetected = currency === 'USD' ? '💵 USD detected' : '៛ KHR detected';
     
     const invoice = `
 ╔═══════════════════════════════╗
@@ -126,6 +171,7 @@ async function handlePaymentText(bot, msg) {
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
+${currencyDetected}
 💰 **Amount:** ${amounts.khr}
 💵 **Amount (USD):** ${amounts.usd}
 📝 **Description:** ${description}
