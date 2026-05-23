@@ -2,9 +2,15 @@ async function startHandler(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
   const userName = msg.from.first_name || 'User';
+  const userLastName = msg.from.last_name || '';
+  const username = msg.from.username || '';
+  
+  // Create full name display
+  const fullName = `${userName}${userLastName ? ' ' + userLastName : ''}`;
+  const userDisplay = username ? `${fullName}-${username}` : fullName;
   
   const welcomeMessage = `
-👋 សួស្តី ${userName}! Welcome to Bakong Vendor Bot!
+👋 សួស្តី ${userDisplay}! Welcome to Bakong Vendor Bot!
 
 🎯 **What I can do:**
 • 📸 Record KHQR payments (QR or Cash)
@@ -19,8 +25,6 @@ async function startHandler(bot, msg) {
 /daily - Today's sales summary
 /branch - Select your branch
 /help - Show this message
-
-${isAdmin(userId) ? '\n🔐 **Admin Commands:**\n/admin - Admin panel\n' : ''}
 
 **Getting Started:**
 1. Select your branch: /branch
@@ -46,6 +50,12 @@ Let's get started! 🚀
     parse_mode: 'Markdown',
     ...keyboard
   });
+}
+
+// Helper function to check if user is admin
+function isAdmin(userId) {
+  const adminIds = process.env.ADMIN_USER_IDS?.split(',').map(id => parseInt(id.trim())) || [];
+  return adminIds.includes(userId);
 }
 
 module.exports = startHandler;
