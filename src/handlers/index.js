@@ -4,6 +4,7 @@ const reportHandler = require('./reportHandler');
 const branchHandler = require('./branchHandler');
 const adminHandler = require('./adminHandler');
 const analyticsHandler = require('./analyticsHandler');
+const { handleRegistration } = require('./registrationHandler');
 
 function registerHandlers(bot) {
   // Track processed messages to prevent duplicates
@@ -99,11 +100,28 @@ function registerHandlers(bot) {
   bot.on('photo', (msg) => paymentHandler.handlePhotoUpload(bot, msg));
   
   // Handle text messages for payment input
-  bot.on('message', (msg) => {
-    // Skip if it's a command, photo, or button text
-    if (msg.text && !msg.text.startsWith('/') && !msg.text.includes('📸') && !msg.text.includes('📊') && !msg.text.includes('🏪') && !msg.text.includes('📅') && !msg.text.includes('❓')) {
-      paymentHandler.handlePaymentText(bot, msg);
+  bot.on('message', async (msg) => {
+    // Skip if not a text message
+    if (!msg.text) return;
+    
+    // Skip commands, photos, button texts
+    if (msg.text.startsWith('/') || 
+        msg.text.includes('📸') || 
+        msg.text.includes('📊') || 
+        msg.text.includes('🏪') || 
+        msg.text.includes('📅') || 
+        msg.text.includes('❓')) {
+      return;
     }
+    
+    // First, try to handle registration flow
+    const wasHandled = await handleRegistration(bot, msg);
+    if (wasHandled) {
+      return; // Message was handled by registration
+    }
+    
+    // Then, try to handle payment input
+    paymentHandler.handlePaymentText(bot, msg);
   });
   
   console.log('✅ All handlers registered');

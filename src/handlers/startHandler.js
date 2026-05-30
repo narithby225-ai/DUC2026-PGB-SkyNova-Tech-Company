@@ -1,3 +1,6 @@
+const { User } = require('../models/simpleDB');
+const { STATES, setUserState, clearUserState } = require('../utils/userState');
+
 async function startHandler(bot, msg) {
   const chatId = msg.chat.id;
   const userId = msg.from.id;
@@ -5,12 +8,16 @@ async function startHandler(bot, msg) {
   const userLastName = msg.from.last_name || '';
   const username = msg.from.username || '';
   
-  // Create full name display
-  const fullName = `${userName}${userLastName ? ' ' + userLastName : ''}`;
-  const userDisplay = username ? `${fullName}-${username}` : fullName;
+  // Check if user is already registered
+  const existingUser = await User.findByTelegramId(userId);
   
-  const welcomeMessage = `
-👋 សួស្តី ${userDisplay}! Welcome to Bakong Vendor Bot!
+  if (existingUser && existingUser.fullName && existingUser.phoneNumber) {
+    // User already registered - show welcome message
+    const fullName = `${userName}${userLastName ? ' ' + userLastName : ''}`;
+    const userDisplay = username ? `${fullName}-${username}` : fullName;
+    
+    const welcomeMessage = `
+👋 សួស្តី ${userDisplay}! Welcome back to Bakong Vendor Bot!
 
 🎯 **What I can do:**
 • 📸 Record KHQR payments (QR or Cash)
@@ -33,23 +40,34 @@ async function startHandler(bot, msg) {
 4. Confirm transaction
 
 Let's get started! 🚀
-  `;
-  
-  const keyboard = {
-    reply_markup: {
-      keyboard: [
-        ['📸 Record Payment', '📊 View Reports'],
-        ['🏪 Select Branch', '📅 Daily Summary'],
-        ['❓ Help']
-      ],
-      resize_keyboard: true
-    }
-  };
-  
-  await bot.sendMessage(chatId, welcomeMessage, { 
-    parse_mode: 'Markdown',
-    ...keyboard
-  });
+    `;
+    
+    const keyboard = {
+      reply_markup: {
+        keyboard: [
+          ['📸 Record Payment', '📊 View Reports'],
+          ['🏪 Select Branch', '📅 Daily Summary'],
+          ['❓ Help']
+        ],
+        resize_keyboard: true
+      }
+    };
+    
+    await bot.sendMessage(chatId, welcomeMessage, { 
+      parse_mode: 'Markdown',
+      ...keyboard
+    });
+  } else {
+    // New user - start registration
+    setUserState(userId, STATES.WAIT_NAME);
+    
+    await bot.sendMessage(chatId, 
+      `👋 សួស្តី! Welcome to Bakong Vendor Bot!\n\n` +
+      `📝 Let's get you registered.\n\n` +
+      `Please enter your **full name**:`,
+      { parse_mode: 'Markdown' }
+    );
+  }
 }
 
 // Helper function to check if user is admin
